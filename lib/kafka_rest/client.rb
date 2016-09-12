@@ -6,7 +6,6 @@ module KafkaRest
     def initialize
       @conn = Faraday.new(url: 'http://localhost:8082') do |c|
         c.request :json
-        c.request :log_resp
         c.request :default_headers, default_headers
 
         c.response :raise_exception
