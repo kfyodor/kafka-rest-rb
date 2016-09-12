@@ -1,6 +1,3 @@
-require 'client'
-require 'thread'
-
 module KafkaRest
   class Worker
     class ConsumerManager

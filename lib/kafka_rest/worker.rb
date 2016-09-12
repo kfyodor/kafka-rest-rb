@@ -1,7 +1,5 @@
-require 'client'
-require 'worker/consumer_manager'
-
-require 'thread'
+require 'kafka_rest/client'
+require 'kafka_rest/worker/consumer_manager'
 require 'concurrent/executor/thread_pool_executor'
 
 module KafkaRest

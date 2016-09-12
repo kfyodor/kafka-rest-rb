@@ -1,5 +1,5 @@
+require 'kafka_rest/client/middleware.rb'
 require 'faraday'
-require 'client/middleware.rb'
 
 module KafkaRest
   class Client

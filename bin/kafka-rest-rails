@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+# TODO, pids, config and stuff
+
+require 'kafka-rest/worker'
+
+ENV['RAILS_ENV'] ||=  ENV['RACK_ENV'] || 'development'
+
+app_path = ENV['APP_PATH'] || '.'
+
+require File.expand_path(app_path, 'config/environment.rb')
+
+client  = KafkaRest::Client.new
+worker  = KafkaRest::Worker.new(client)
+
+worker.start
