@@ -4,7 +4,7 @@ require 'faraday'
 module KafkaRest
   class Client
     def initialize
-      @conn = Faraday.new(url: 'http://localhost:8082') do |c|
+      @conn = Faraday.new(url: KafkaRest.config.url) do |c|
         c.request :json
         c.request :default_headers, default_headers
 
