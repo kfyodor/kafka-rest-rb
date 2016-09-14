@@ -11,8 +11,8 @@ module KafkaRest
     end
 
     def self.included(base)
-      base.cattr_accessor :_topic
-      base.cattr_accessor :_message_format
+      # base.cattr_accessor :_topic
+      # base.cattr_accessor :_message_format
 
       base.extend ClassMethods
     end

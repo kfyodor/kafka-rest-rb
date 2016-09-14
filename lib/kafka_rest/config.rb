@@ -1,7 +1,7 @@
 module KafkaRest
   class Config
-    attr_accessor :url
-    attr_accessor :default_message_format
+    attr_accessor :url,
+                  :default_message_format
 
     def initialize
       @url = 'http://localhost:8082'
@@ -10,9 +10,12 @@ module KafkaRest
   end
 
   @@config = Config.new
-  cattr_accessor :config
 
-  def self.configure &block
-    block.call self.config
+  def self.configure(&block)
+    block.call @@config
+  end
+
+  def self.config
+    @@config
   end
 end

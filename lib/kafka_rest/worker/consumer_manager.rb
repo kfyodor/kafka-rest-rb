@@ -1,3 +1,5 @@
+require 'concurrent/utility/monotonic_time'
+
 module KafkaRest
   class Worker
     class ConsumerManager
@@ -18,16 +20,17 @@ module KafkaRest
 
       extend Forwardable
 
-      def_delegators :@consumer, :_topic, :_group_name
+      def_delegators :@consumer, :_topic, :_group_name, :_poll_delay
 
       def initialize(client, consumer)
-        @client   = client
-        @consumer = consumer
-        @instance = consumer.new
-        @id       = nil
-        @uri      = nil
-        @state    = :initial
-        @lock     = Mutex.new
+        @client    = client
+        @consumer  = consumer
+        @instance  = consumer.new
+        @id        = nil
+        @uri       = nil
+        @state     = :initial
+        @next_poll = Concurrent.monotinic_time
+        @lock      = Mutex.new
       end
 
       STATES.each do |state|
@@ -35,6 +38,12 @@ module KafkaRest
           def #{state}?(lock = true)
             with_lock(lock) { @state == :#{state} }
           end
+        }
+      end
+
+      def poll?
+        with_lock {
+          idle?(false) && Concurrent.monotinic_time > @next_poll
         }
       end
 
@@ -84,18 +93,19 @@ module KafkaRest
             params
           ).body
 
-          got_some = messages.any?
-
-          if got_some
+          if messages.any?
             messages.each do |msg|
               puts "[Kafka REST] Consumer #{@id} got message: #{msg}"
               @instance.receive(msg)
             end
             @client.consumer_commit_offsets(_group_name, @id)
+          else
+            with_lock {
+              @next_poll = Concurrent.monotonic_time + _poll_delay
+            }
           end
 
           with_lock { @state = :idle }
-          got_some
         rescue Exception => e # TODO: handle errors
           puts "[Kafka REST] Consumer died due to error: #{e.class}, #{e.message}"
           with_lock { @state = :dead }

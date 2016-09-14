@@ -4,10 +4,12 @@ require 'concurrent/executor/thread_pool_executor'
 
 module KafkaRest
   class Worker
+    BUSY_THREAD_POOL_DELAY = 0.5
+    NO_WORK_DELAY = 0.1
+
     def initialize(client)
       @client = client
       @started = false
-      @producer = nil
       @thread_pool = Concurrent::ThreadPoolExecutor.new(
         min_threads: 4, # find the right number
         max_threads: 4,
@@ -44,7 +46,6 @@ module KafkaRest
     end
 
     def stop
-      @producer.kill if @producer
       @running = false
       remove_consumers
     end
@@ -55,16 +56,27 @@ module KafkaRest
       while @running
         check_dead!
 
-        # Temporary.
-        @consumers.select(&:idle?).each do |c|
-          sleep(1) unless @thread_pool.post do
-            sleep(1) unless c.poll!
+        jobs = @consumers.select(&:poll?)
+
+        if jobs.empty?
+          sleep(NO_WORK_DELAY)
+          next
+        end
+
+        pool_available = jobs.each do |c|
+          unless @thread_pool.post { c.poll! }
+            break(false)
           end
+        end
+
+        unless pool_available
+          sleep(BUSY_THREAD_POOL_DELAY)
         end
       end
     end
 
     def check_dead!
+      # Do we need this?
       if @consumers.all?(&:dead?)
         puts "[Kafka REST] All consumers are dead. Quitting..."
         stop
