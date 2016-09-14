@@ -4,6 +4,7 @@ module KafkaRest
   class Worker
     class ConsumerManager
       STATES = [:initial, :idle, :working, :dead]
+
       class << self
         @@consumers = []
 
@@ -20,16 +21,22 @@ module KafkaRest
 
       extend Forwardable
 
-      def_delegators :@consumer, :_topic, :_group_name, :_poll_delay
+      def_delegators :@consumer,
+                     :_topic,
+                     :_group_name,
+                     :_poll_delay,
+                     :_auto_commit,
+                     :_offset_reset,
+                     :_message_format,
+                     :_max_bytes
 
       def initialize(client, consumer)
         @client    = client
-        @consumer  = consumer
-        @instance  = consumer.new
+        @consumer  = consumer.new
         @id        = nil
         @uri       = nil
         @state     = :initial
-        @next_poll = Concurrent.monotinic_time
+        @next_poll = Concurrent.monotonic_time
         @lock      = Mutex.new
       end
 
@@ -43,20 +50,15 @@ module KafkaRest
 
       def poll?
         with_lock {
-          idle?(false) && Concurrent.monotinic_time > @next_poll
+          idle?(false) && Concurrent.monotonic_time > @next_poll
         }
       end
 
       def add!
         params = {}.tap do |h|
-          @consumer._auto_commit.nil? or
-            h[:auto_commit_enable] = @consumer._auto_commit
-
-          @consumer._offset_reset and
-            h[:auto_offset_reset] = @consumer._offset_reset
-
-          @consumer._message_format and
-            h[:format] = @consumer._message_format
+          _auto_commit.nil? or h[:auto_commit_enable] = _auto_commit
+          _offset_reset and h[:auto_offset_reset] = @consumer._offset_reset
+          _message_format and h[:format] = _message_format
         end
 
         resp   = @client.consumer_add(_group_name, params)
@@ -78,12 +80,12 @@ module KafkaRest
             @state = :working
           end
 
-          params = {}.tap do |h|
-            @consumer._message_format and
-              h[:format] = @consumer._message_format
+          puts "Polling #{_group_name}..."
 
-            @consumer._max_bytes and
-              h[:max_bytes] = @consumer._max_bytes
+          params = {}.tap do |h|
+            _message_format and h[:format] = _message_format
+
+            _max_bytes and h[:max_bytes] = _max_bytes
           end
 
           messages = @client.consumer_consume_from_topic(
@@ -96,7 +98,7 @@ module KafkaRest
           if messages.any?
             messages.each do |msg|
               puts "[Kafka REST] Consumer #{@id} got message: #{msg}"
-              @instance.receive(msg)
+              @consumer.receive(msg)
             end
             @client.consumer_commit_offsets(_group_name, @id)
           else
