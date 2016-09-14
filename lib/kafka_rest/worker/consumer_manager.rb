@@ -100,14 +100,18 @@ module KafkaRest
               puts "[Kafka REST] Consumer #{@id} got message: #{msg}"
               @consumer.receive(msg)
             end
-            @client.consumer_commit_offsets(_group_name, @id)
-          else
-            with_lock {
-              @next_poll = Concurrent.monotonic_time + _poll_delay
-            }
-          end
 
-          with_lock { @state = :idle }
+            unless _auto_commit
+              @client.consumer_commit_offsets(_group_name, @id)
+            end
+
+            with_lock { @state = :idle }
+          else
+            with_lock do
+              @next_poll = Concurrent.monotonic_time + _poll_delay
+              @state = :idle
+            end
+          end
         rescue Exception => e # TODO: handle errors
           puts "[Kafka REST] Consumer died due to error: #{e.class}, #{e.message}"
           with_lock { @state = :dead }
