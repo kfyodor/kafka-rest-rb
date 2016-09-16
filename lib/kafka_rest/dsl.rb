@@ -1,5 +1,7 @@
 module KafkaRest
   module Dsl
+    # TODO validate required fields at some moment
+
     class MissingRequiredOption < StandardError;
       def initialize(name)
         super("Missing required option `#{name}`")
@@ -13,33 +15,30 @@ module KafkaRest
       default   = opts[:default]
       validate  = opts[:validate] || ->(val) { true }
       error_msg = opts[:error_message] || "`#{name}`'s value is invalid"
-      required  = opts[:required] || false
 
       class_eval do
         metaclass = class << self; self; end
-        class_variable_set "@@#{name}", default
-        metaclass.send :define_method, "validate_#{name}", &validate
+        instance_variable_set "@#{name}", default
+        metaclass.send :define_method, "validate_#{name}", ->(val) { validate.call(val) }
       end
 
       class_eval %Q{
         def #{name}
-          @@#{name}
+          self.class.instance_variable_get("@#{name}")
         end
 
-        def self._#{name}
-          @@#{name}
-        end
-
-        def self.#{name}(val)
-          if #{required} && val == nil
-            raise KafkaRest::Dsl::MissingRequiredOption.new("#{name}")
+        class << self
+          def _#{name}
+            @#{name}
           end
 
-          unless validate_#{name}(val)
-            raise KafkaRest::Dsl::InvalidOptionValue.new("#{error_msg}")
-          end
+          def #{name}(val)
+            unless validate_#{name}(val)
+              raise KafkaRest::Dsl::InvalidOptionValue.new("#{error_msg}")
+            end
 
-          @@#{name} = val
+            @#{name} = val
+          end
         end
       }
     end

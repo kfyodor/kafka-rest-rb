@@ -2,21 +2,31 @@ require 'thread'
 
 module KafkaRest
   class Producer
-    def initialize(client, schema_repo)
-      @lock = Mutex.new
+    @@lock = Mutex.new
+
+    class << self
+      def instance
+        @@lock.synchronize do
+          @instance ||= Producer.new(Client.new, lock: @@lock)
+        end
+      end
+    end
+
+    def initialize(client, opts = {})
+      @lock = opts[:lock] || Mutex.new
       @client = client
       @key_schema_cache = {}
       @value_schema_cache = {}
-      @schema_repo = schema_repo
     end
 
     def send!(message)
       resp = @client.topic_produce_message(
         message.topic,
         message.build_payload.merge
-      )
+      ).body
 
       cache_schema_ids!(resp, message)
+      resp['offset'].to_i
     end
 
     private
