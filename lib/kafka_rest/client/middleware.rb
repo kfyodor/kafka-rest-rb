@@ -58,11 +58,11 @@ module KafkaRest
 
     Faraday::Request.register_middleware(
       default_headers: DefaultHeaders,
-      json: JsonRequest
+      encode_json: JsonRequest
     )
 
     Faraday::Response.register_middleware(
-      json: JsonResponse,
+      decode_json: JsonResponse,
       raise_exception: RaiseException
     )
   end

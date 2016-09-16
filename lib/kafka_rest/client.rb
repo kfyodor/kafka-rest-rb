@@ -5,11 +5,11 @@ module KafkaRest
   class Client
     def initialize
       @conn = Faraday.new(url: KafkaRest.config.url) do |c|
-        c.request :json
+        c.request :encode_json
         c.request :default_headers, default_headers
 
         c.response :raise_exception
-        c.response :json
+        c.response :decode_json
 
         c.adapter :net_http_persistent
       end

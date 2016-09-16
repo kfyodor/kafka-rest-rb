@@ -42,8 +42,8 @@ module KafkaRest
     end
 
     def send!(opts = {})
-      producer = opts.delete(:producer) || KafkaRest::Producer.instance
-      producer.send!(self, opts)
+      producer = opts[:producer] || KafkaRest::Producer.instance
+      producer.send!(self)
     end
 
     def serialize_value
@@ -69,24 +69,21 @@ module KafkaRest
         key: get_key,
         value: serialize_value,
         key_schema: key_schema,
-        value_schema: value_schema,
-        topic: topic
+        value_schema: value_schema
       }
     end
 
     def build_binary_payload
       {
         key: get_key,
-        value: Base64.strict_encode64(serialize_value),
-        topic: topic
+        value: Base64.strict_encode64(serialize_value)
       }
     end
 
     def build_json_payload
       {
         key: get_key,
-        value: serialize_value,
-        topic: topic
+        value: serialize_value
       }
     end
 

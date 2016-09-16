@@ -22,7 +22,8 @@ module KafkaRest
     def send!(message)
       resp = @client.topic_produce_message(
         message.topic,
-        message.build_payload.merge
+        message.send(:build_payload),
+        message.message_format
       ).body
 
       cache_schema_ids!(resp, message)
@@ -32,6 +33,9 @@ module KafkaRest
     private
 
     def cache_schema_ids!(resp, message)
+      return unless message.message_format.to_sym == :avro
+      topic = message.topic
+
       @lock.synchronize do
         if @key_schema_cache[topic].nil? && kid = resp['key_schema_id']
           @key_schema_cache[topic] = kid
