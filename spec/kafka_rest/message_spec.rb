@@ -4,28 +4,16 @@ describe KafkaRest::Message do
   context 'payload' do
     subject { message.send :build_payload }
 
-    module NoopSerializer
-      def noop_serializer
-        Class.new(KafkaRest::Message::SerializationAdapter) do
-          def serialize
-            @obj
-          end
-        end
-      end
-    end
-
     context 'json message' do
       let(:value) { { id: "id", name: "Test" } }
-      let(:payload) { { key: "id", value: value, topic: "test_topic" } }
+      let(:payload) { { key: "id", value: value } }
 
       context 'key as a proc' do
         class JsonMessage < KafkaRest::Message
-          extend NoopSerializer
 
           topic "test_topic"
           message_format :json
           key ->(obj){ obj[:id] }
-          serializer noop_serializer
         end
 
         let(:message) { JsonMessage.new(value) }
@@ -37,12 +25,9 @@ describe KafkaRest::Message do
 
       context 'key as a method in a class' do
         class JsonMessageWithKeyAsAMethod < KafkaRest::Message
-          extend NoopSerializer
-
           topic "test_topic"
           message_format :json
           key :id
-          serializer noop_serializer
 
           def id
             object[:id]
@@ -58,12 +43,9 @@ describe KafkaRest::Message do
 
       context 'key as an objec\'s method' do
         class JsonMessageWithKeyAsAnInstanceMethod < KafkaRest::Message
-          extend NoopSerializer
-
           topic 'test_topic'
           message_format :json
           key :object_key
-          serializer noop_serializer
         end
 
         let(:message) {
@@ -77,32 +59,30 @@ describe KafkaRest::Message do
       end
     end
 
-    context 'avro message' do
+    context 'binary message' do
+      class BinaryMessage < KafkaRest::Message
+        topic 'test_topic'
+        message_format :binary
+        key ->(obj) { obj[:id] }
+
+        serializer(
+          Class.new(KafkaRest::Message::Serializer) do
+            def as_json
+              Oj.dump @object
+            end
+          end
+        )
+      end
+
       let(:value) { { id: "id", test: 'test' } }
       let(:payload) do
         {
           key: "id",
-          value: Base64.strict_encode64(Oj.dump value),
-          topic: "test_topic"
+          value: Base64.strict_encode64(Oj.dump value)
         }
       end
 
-      let(:message) do
-        Class.new(KafkaRest::Message) do
-          def self._serializer
-            Class.new(KafkaRest::Message::SerializationAdapter) do
-              def serialize
-                Oj.dump @obj
-              end
-            end
-          end
-
-          topic 'test_topic'
-          message_format :binary
-          key ->(obj) { obj[:id] }
-          serializer _serializer
-        end.new(value)
-      end
+      let(:message) { BinaryMessage.new(value) }
 
       it 'builds payload' do
         expect(subject).to eq payload

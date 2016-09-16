@@ -31,7 +31,7 @@ module KafkaRest
     end
 
     def receive(*args)
-      raise NotImplemented
+      raise NotImplementedError
     end
   end
 end

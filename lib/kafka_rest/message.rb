@@ -1,5 +1,5 @@
 require 'kafka_rest/dsl'
-require 'kafka_rest/message/serialization_adapter'
+require 'kafka_rest/message/serializer'
 
 module KafkaRest
   class Message
@@ -27,13 +27,9 @@ module KafkaRest
       end
     }
 
-    option :serializer, validate: ->(val) {
-      val.is_a?(Class) && val < SerializationAdapter
-    }, error_message: 'Serializer should be a child of `SerializationAdapter`'
-
-    option :serializer_options, default: {}, validate: ->(val) {
-      val.is_a?(Hash)
-    }, error_message: 'Serializer options must be a Hash'
+    option :serializer, with_options: true, validate: ->(val) {
+      val.is_a?(Class) && val < Serializer
+    }, error_message: 'Serializer should be an ancestor of `KafkaRest::Message::Serializer`'
 
     attr_reader :object
 
@@ -41,17 +37,19 @@ module KafkaRest
       @object  = object
     end
 
-    def send!(opts = {})
-      producer = opts[:producer] || KafkaRest::Producer.instance
-      producer.send!(self)
+    def send!
+      (opts[:producer] || KafkaRest::Producer.instance).send!(self)
     end
 
-    def serialize_value
-      serializer.new(@object, serializer_options).serialize
+    def serialized_value
+      serializer.new(@object, serializer_options).as_json
     end
-
 
     private
+
+    def serializer
+      self.class._serializer || KafkaRest.config.default_message_serializer
+    end
 
     def build_payload
       case self.message_format.to_sym
@@ -67,7 +65,7 @@ module KafkaRest
     def build_avro_payload
       {
         key: get_key,
-        value: serialize_value,
+        value: serialized_value,
         key_schema: key_schema,
         value_schema: value_schema
       }
@@ -76,14 +74,14 @@ module KafkaRest
     def build_binary_payload
       {
         key: get_key,
-        value: Base64.strict_encode64(serialize_value)
+        value: Base64.strict_encode64(serialized_value)
       }
     end
 
     def build_json_payload
       {
         key: get_key,
-        value: serialize_value
+        value: serialized_value
       }
     end
 

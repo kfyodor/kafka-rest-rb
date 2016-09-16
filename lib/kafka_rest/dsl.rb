@@ -11,10 +11,11 @@ module KafkaRest
     class InvalidOptionValue < StandardError; end
 
     def option(name, opts = {})
-      name      = name.to_s
-      default   = opts[:default]
-      validate  = opts[:validate] || ->(val) { true }
-      error_msg = opts[:error_message] || "`#{name}`'s value is invalid"
+      name         = name.to_s
+      default      = opts[:default]
+      validate     = opts[:validate] || ->(val) { true }
+      error_msg    = opts[:error_message] || "`#{name}`'s value is invalid"
+      with_options = opts[:with_options] || false
 
       class_eval do
         metaclass = class << self; self; end
@@ -24,23 +25,54 @@ module KafkaRest
 
       class_eval %Q{
         def #{name}
-          self.class.instance_variable_get("@#{name}")
+          self.class._#{name}
         end
 
         class << self
           def _#{name}
             @#{name}
           end
-
-          def #{name}(val)
-            unless validate_#{name}(val)
-              raise KafkaRest::Dsl::InvalidOptionValue.new("#{error_msg}")
+        end
+      } + (
+        if with_options
+          %Q{
+            def #{name}_options
+              self.class._#{name}_options
             end
 
-            @#{name} = val
-          end
+            class << self
+              def #{name}(val, options = {})
+                unless validate_#{name}(val)
+                  raise KafkaRest::Dsl::InvalidOptionValue.new("#{error_msg}")
+                end
+
+                @#{name} = val
+                @#{name}_options = options
+              end
+
+              def #{name}_options(options)
+                @#{name}_options = options
+              end
+
+              def _#{name}_options
+                @#{name}_options
+              end
+            end
+          }
+        else
+          %Q{
+            class << self
+              def #{name}(val)
+                unless validate_#{name}(val)
+                  raise KafkaRest::Dsl::InvalidOptionValue.new("#{error_msg}")
+                end
+
+                @#{name} = val
+              end
+            end
+          }
         end
-      }
+      )
     end
   end
 end
