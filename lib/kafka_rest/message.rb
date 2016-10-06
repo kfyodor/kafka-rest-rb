@@ -33,16 +33,17 @@ module KafkaRest
 
     attr_reader :object
 
-    def initialize(object)
+    def initialize(object, opts = {})
       @object  = object
+      @opts    = opts
     end
 
-    def send!
+    def send!(opts = {})
       (opts[:producer] || KafkaRest::Producer.instance).send!(self)
     end
 
     def serialized_value
-      serializer.new(@object, serializer_options).as_json
+      serializer.new(@object, serializer_options, @opts).as_json
     end
 
     private

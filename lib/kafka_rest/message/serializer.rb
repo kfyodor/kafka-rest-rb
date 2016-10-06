@@ -8,9 +8,10 @@ module KafkaRest
         end
       end
 
-      def initialize(object, options = {})
-        @object  = object
-        @options = options
+      def initialize(object, options = {}, obj_options = {})
+        @object      = object
+        @options     = options
+        @obj_options = obj_options
       end
 
       def as_json
