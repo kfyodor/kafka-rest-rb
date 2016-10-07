@@ -7,13 +7,14 @@ module KafkaRest
     BUSY_THREAD_POOL_DELAY = 0.5
     NO_WORK_DELAY = 0.1
 
+    # TODO: logger
     def initialize(client)
       @client = client
       @started = false
       @thread_pool = Concurrent::ThreadPoolExecutor.new(
-        min_threads: 4, # find the right number
-        max_threads: 4,
-        max_queue: ConsumerManager.consumers.size * 2,
+        min_threads: KafkaRest.config.worker_min_threads,
+        max_threads: KafkaRest.config.worker_max_threads,
+        max_queue:   max_queue,
         fallback_policy: :discard
       )
 
@@ -89,6 +90,11 @@ module KafkaRest
 
     def remove_consumers
       @consumers.reject(&:initial?).map &:remove!
+    end
+
+    def max_queue
+      KafkaRest.config.worker_max_queue ||
+        ConsumerManager.consumers.size * 2
     end
   end
 end
