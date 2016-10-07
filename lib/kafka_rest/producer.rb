@@ -59,7 +59,8 @@ module KafkaRest
 
     module ClassMethods
       def send!(obj, opts = {}, producer = nil)
-        (producer || KafkaRest::Sender.instance).send!(self, obj, opts)
+        (producer || KafkaRest::Sender.instance)
+          .send!(self, obj, opts)
       end
     end
   end

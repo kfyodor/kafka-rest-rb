@@ -43,9 +43,7 @@ describe KafkaRest::Sender::Payload do
       it do
         should eq({
           key: nil,
-          value: "test",
-          key_schema: "[\"null\", \"string\"]",
-          value_schema: "string"
+          value: "test"
         })
       end
     end

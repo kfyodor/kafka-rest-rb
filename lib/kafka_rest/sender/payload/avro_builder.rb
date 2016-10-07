@@ -2,12 +2,13 @@ module KafkaRest
   class Sender
     class Payload
       class AvroBuilder < Builder
+        # TODO: since schemas are not needed here,
+        #       move this and json_builder to builder
+        #       and keep only BinaryBuilder
         def build
           {
             key: @payload.key,
             value: @payload.value,
-            key_schema: @payload.klass.get_key_schema,
-            value_schema: @payload.klass.get_value_schema
           }
         end
       end

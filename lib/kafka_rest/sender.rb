@@ -1,4 +1,5 @@
 require 'thread'
+require 'kafka_rest/sender/payload'
 
 module KafkaRest
   class Sender
@@ -14,7 +15,6 @@ module KafkaRest
 
     attr_reader :key_schema_cache, :value_schema_cache
 
-
     # TODO: buffering???
     def initialize(client, opts = {})
       @lock = opts[:lock] || Mutex.new
@@ -25,32 +25,39 @@ module KafkaRest
 
     # TODO: back-off retry if offset[i].errors is a retriable error
     def send!(klass, obj, opts = {})
-      topic   = klass.get_topic.to_s
-      format  = klass.get_format.to_s
-      payload = build_payload(topic, klass, obj, opts)
-
-      send_produce_request!(topic, payload, format)
+      topic, payload, format, params = build_request(klass, obj, opts)
+      send_produce_request!(topic, payload, format, params)
     end
 
     private
 
-    def build_payload(topic, klass, obj, opts)
-      # TODO: oooh, dirty - this should not be here
-      Payload.new(klass, obj, opts).build.tap do |pl|
-        if kid = @key_schema_cache[topic]
-          pl.delete :key_schema
-          pl[:key_schema_id] = kid
-        end
+    def build_request(klass, obj, opts)
+      # TODO: oooh, dirty and weird - this should not be here.
+      #       come up with something good!
+      topic    = klass.get_topic.to_s
+      payload  = Payload.new(klass, obj, opts).build
+      format   = klass.get_format.to_s
+      params   = {}.tap do |_p|
+        if format == 'avro'
+          if kid = @key_schema_cache[topic]
+            _p[:key_schema_id] = kid
+          else
+            _p[:key_schema] = klass.get_key_schema
+          end
 
-        if vid = @value_schema_cache[topic]
-          pl.delete :value_schema
-          pl[:value_schema_id] = vid
+          if vid = @value_schema_cache[topic]
+            _p[:value_schema_id] = vid
+          else
+            _p[:value_schema] = klass.get_value_schema
+          end
         end
       end
+
+      [topic, payload, format, params]
     end
 
-    def send_produce_request!(topic, payload, format)
-      @client.topic_produce_message(topic, payload, format).body.tap do |re|
+    def send_produce_request!(topic, payload, format, params)
+      @client.topic_produce_message(topic, payload, format, params).body.tap do |re|
         # this too (line 27)
         cache_schema_ids!(re, topic) if format == 'avro'
       end['offsets']

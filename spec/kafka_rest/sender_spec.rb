@@ -65,9 +65,10 @@ describe KafkaRest::Sender do
     it 'uses schema ids instead of schemas in payload if found' do
       subject
 
-      pl = sender.send :build_payload, 'test_topic', klass, obj, {}
-      expect(pl).to have_key(:key_schema_id)
-      expect(pl).to have_key(:value_schema_id)
+      params = sender.send(:build_request, klass, obj, {}).last
+
+      expect(params).to have_key(:key_schema_id)
+      expect(params).to have_key(:value_schema_id)
     end
   end
 end

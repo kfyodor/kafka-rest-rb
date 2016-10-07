@@ -10,11 +10,11 @@ module KafkaRest
 
         def klass
           @klass ||= (
-            unless defined?(ActiveModel::Serializer)
+            unless defined?(::ActiveModel::Serializer)
               'ActiveModel::Serializer cannot be found'
             end
 
-            if (kl = @args.first) && kl < ActiveModel::Serializer
+            if (kl = @args.first) && kl < ::ActiveModel::Serializer
               kl
             else
               raise 'Provide ActiveModel::Serializer child as an argunent to `serializer`'

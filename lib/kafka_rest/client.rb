@@ -50,8 +50,11 @@ module KafkaRest
       )
     end
 
-    def produce_message(path, records, format)
-      body = { records: records.is_a?(Array) ? records : [records] }
+    def produce_message(path, records, format, params)
+      body = params.merge(
+        records: records.is_a?(Array) ? records : [records]
+      )
+
       @conn.post(path, body, content_type(format))
     end
     private :produce_message
@@ -59,14 +62,14 @@ module KafkaRest
     # Produce message into a topic
     ### params: key_schema, value_schema, key_schema_id, value_schema_id, records { key, value, partition }
     ### returns: key_schema_id, value_schema_id, offsets { partition, offset, error_code, error }
-    def topic_produce_message(topic, records, format = 'json')
-      produce_message("topics/#{topic}", records, format)
+    def topic_produce_message(topic, records, format = 'json', params = {})
+      produce_message("topics/#{topic}", records, format, params)
     end
 
     # Produce message into a topic and partition
     ### see topic_produce_message
-    def topic_partition_produce_message(topic, partition, records, format = 'json')
-      produce_message("topics/#{topic}/partitions/#{partition}", records, format)
+    def topic_partition_produce_message(topic, partition, records, format = 'json', params = {})
+      produce_message("topics/#{topic}/partitions/#{partition}", records, format, params)
     end
 
     # Add new consumer to a group
