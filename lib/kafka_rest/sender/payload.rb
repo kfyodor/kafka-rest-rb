@@ -13,10 +13,17 @@ module KafkaRest
         @obj     = obj
         @opts    = opts
         @builder = get_builder.new(self)
+
+        @key       = @opts.delete(:key)
+        @timestamp = @opts.delete(:timestamp)
+        @partition = @opts.delete(:partition)
       end
 
       def build
-        @builder.build
+        @builder.build.tap do |pl|
+          @timestamp and pl[:timestamp] = @timestamp
+          @partition and pl[:partition] = @partition
+        end
       end
 
       def value
@@ -24,6 +31,8 @@ module KafkaRest
       end
 
       def key
+        return @key if @key
+
         k = @klass.get_key
 
         case k
