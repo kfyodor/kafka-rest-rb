@@ -24,7 +24,7 @@ module KafkaRest
         class << self
           def get_#{name}
             @#{name}.tap do |v|
-              if #{required}
+              if #{required} && v.nil?
                 raise KafkaRest::Dsl::MissingRequiredOption.new(
                   "Missing required option `#{name}`"
                 )

@@ -37,7 +37,7 @@ module KafkaRest
     private
 
     def cache_schema_ids!(resp, message)
-      return unless message.message_format.to_sym == :avro
+      return unless message.format.to_sym == :avro
       topic = message.topic
 
       @lock.synchronize do

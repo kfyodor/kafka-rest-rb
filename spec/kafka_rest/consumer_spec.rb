@@ -6,7 +6,7 @@ describe KafkaRest::Consumer do
 
     topic "stuff"
     group_name "test_consumer"
-    message_format :json
+    format :json
     auto_commit false
     offset_reset :smallest
     poll_delay 0.2
@@ -25,7 +25,7 @@ describe KafkaRest::Consumer do
   end
 
   it 'has message format' do
-    expect(TestConsumer.get_message_format).to eq :json
+    expect(TestConsumer.get_format).to eq :json
   end
 
   it 'has auto_commit' do

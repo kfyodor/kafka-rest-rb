@@ -27,7 +27,7 @@ module KafkaRest
                      :poll_delay,
                      :auto_commit,
                      :offset_reset,
-                     :message_format,
+                     :format,
                      :max_bytes
 
       def initialize(client, consumer)
@@ -58,7 +58,7 @@ module KafkaRest
         params = {}.tap do |h|
           auto_commit.nil? or h[:auto_commit_enable] = auto_commit
           offset_reset and h[:auto_offset_reset] = offset_reset
-          message_format and h[:format] = message_format
+          format and h[:format] = format
         end
 
         resp   = @client.consumer_add(group_name, params)
@@ -83,7 +83,7 @@ module KafkaRest
           puts "Polling #{group_name}..."
 
           params = {}.tap do |h|
-            message_format and h[:format] = message_format
+            format and h[:format] = format
             max_bytes and h[:max_bytes] = max_bytes
           end
 

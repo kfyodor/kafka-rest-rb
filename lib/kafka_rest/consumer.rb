@@ -10,9 +10,12 @@ module KafkaRest
 
         option :group_name, required: true
 
-        option :message_format, default: :json, validate: ->(val){
-          %w(json binary avro).include?(val.to_s)
-        }, error_message: 'Format must be either `json`, `avro` or `binary`'
+        option :format,
+               default: KafkaRest.config.default_message_format,
+               validate: ->(val){
+                 %w(json binary avro).include?(val.to_s)
+               },
+               error_message: 'Format must be either `json`, `avro` or `binary`'
 
         option :auto_commit, default: false
 
