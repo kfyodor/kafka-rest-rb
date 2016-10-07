@@ -4,6 +4,7 @@ require 'kafka_rest/client'
 require 'kafka_rest/producer'
 require 'kafka_rest/producer/serialization/adapter'
 require 'kafka_rest/sender'
+require 'kafka_rest/sender/payload'
 require 'kafka_rest/message'
 require 'kafka_rest/consumer'
 

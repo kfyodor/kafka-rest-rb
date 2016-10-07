@@ -1,5 +1,5 @@
 module KafkaRest
-  module Producer
+  class Sender
     class Payload
       class Builder
         def initialize(payload)

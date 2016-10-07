@@ -1,3 +1,8 @@
+require 'kafka_rest/sender/payload/builder'
+require 'kafka_rest/sender/payload/avro_builder'
+require 'kafka_rest/sender/payload/json_builder'
+require 'kafka_rest/sender/payload/binary_builder'
+
 module KafkaRest
   class Sender
     class Payload
@@ -7,11 +12,11 @@ module KafkaRest
         @klass   = klass
         @obj     = obj
         @opts    = opts
-        @builder = get_builder(klass)
+        @builder = get_builder.new(self)
       end
 
       def build
-        @builder.build(self)
+        @builder.build
       end
 
       def value
@@ -27,8 +32,8 @@ module KafkaRest
         when Symbol
           if inst.respond_to?(k)
             inst.send(k, @obj)
-          elsif
-            @obj.respond_to?(k)
+          elsif @obj.respond_to?(k)
+            @obj.send(k)
           else
             raise NoMethodError.new("Undefined method \"#{k}\"")
           end

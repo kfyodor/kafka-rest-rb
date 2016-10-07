@@ -3,25 +3,23 @@ require 'kafka_rest/dsl'
 module KafkaRest
   module Producer
     def self.included(base)
-      base.extend Dsl
       base.class_eval do
+        extend ClassMethods
+        extend Dsl
+
         option :topic, required: true
 
-        option :format,
-               validate: ->(val) {
-                 %w(json binary avro).include?(val.to_s)
-               },
-               error_message: 'Format must be `avro`, `json` or `binary`.',
-               default: KafkaRest.config.default_message_format
+        option :format, default: KafkaRest.config.message_format, validate: ->(v){
+          %w(json binary avro).include?(v.to_s)
+        }, error_message: 'Format must be `avro`, `json` or `binary`.'
 
-        option :key_schema,
-               validate: ->(val) {
-                 val.is_a?(Symbol) || val.is_a?(String) || val.is_a?(Proc)
-               },
-               default: '{"type": "string"}'
 
-        option :value_schema, validate: ->(val) {
-          val.is_a?(Symbol) || val.is_a?(String) || val.is_a?(Proc)
+        option :key_schema, validate: ->(v){
+          v.is_a?(Symbol) || v.is_a?(String) || v.is_a?(Proc)
+        }, default: '["null", "string"]'
+
+        option :value_schema, validate: ->(v){
+          v.is_a?(Symbol) || v.is_a?(String) || v.is_a?(Proc)
         }
 
         option :key, validate: ->(val) {
@@ -32,25 +30,34 @@ module KafkaRest
           end
         }
 
-        option :serialization_adapter, validate: ->(val) {
+        option :serialization_adapter, validate: ->(val){
           if val
             val.is_a?(Class) && val < Serialization::Adapter
           else
             true
           end
-        }, default: KafkaRest.config.default_serialization_adapter
+        }, default: KafkaRest.config.serialization_adapter
 
         option :serializer
-      end
 
-      base.extend ClassMethods
+        class << base
+          # right away override default get_serializer and get_value_schema
+          def get_serializer
+            @serializer_inst ||= get_serialization_adapter.new @serializer
+          end
+
+          def get_value_schema
+            if get_format.to_s == 'avro' && @value_schema.nil?
+              raise 'Format `avro` requires providing `value_schema`'
+            end
+
+            @value_schema
+          end
+        end
+      end
     end
 
     module ClassMethods
-      def get_serializer
-        @serializer_inst ||= get_serialization_adapter.new @serializer
-      end
-
       def send!(obj, opts = {}, producer = nil)
         (producer || KafkaRest::Producer::Sender.instance).send!(self, obj, opts)
       end

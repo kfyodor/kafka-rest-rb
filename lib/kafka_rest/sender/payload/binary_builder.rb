@@ -1,7 +1,7 @@
 require 'base64'
 
 module KafkaRest
-  module Producer
+  class Sender
     class Payload
       class BinaryBuilder < Builder
         def build

@@ -1,5 +1,5 @@
 module KafkaRest
-  module Producer
+  class Sender
     class Payload
       class AvroBuilder < Builder
         def build
