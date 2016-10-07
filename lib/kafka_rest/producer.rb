@@ -1,49 +1,48 @@
-require 'thread'
+require 'kafka_rest/dsl'
 
 module KafkaRest
-  class Producer
-    @@lock = Mutex.new
+  module Producer
+    def self.included(base)
+      base.extend Dsl
+      base.class_eval do
+        option :topic, required: true
 
-    class << self
-      def instance
-        @@lock.synchronize do
-          @instance ||= Producer.new(Client.new, lock: @@lock)
-        end
+        option :message_format, default: 'json', validate: ->(val) {
+          %w(json binary avro).include?(val.to_s)
+        }, error_message: 'Format must be `avro`, `json` or `binary`.'
+
+        option :key_schema, default: '{"type": "string"}', validate: ->(val) {
+          val.is_a?(Symbol) || val.is_a?(String) || val.is_a?(Proc)
+        }
+
+        option :value_schema, validate: ->(val) {
+          val.is_a?(Symbol) || val.is_a?(String) || val.is_a?(Proc)
+        }
+
+        option :key, validate: ->(val) {
+          if val
+            val.is_a?(Symbol) || val.is_a?(Proc)
+          else
+            true
+          end
+        }
+
+        option :serialization_adapter
+        option :serializer
       end
+
+      base.extend ClassMethods
     end
 
-    def initialize(client, opts = {})
-      @lock = opts[:lock] || Mutex.new
-      @client = client
-      @key_schema_cache = {}
-      @value_schema_cache = {}
-    end
+    module ClassMethods
+      def get_serializer
+        @serializer_inst ||= (
+          get_serialization_adapter || KafkaRest.config.default_serialization_adapter
+        ).new @serializer
+      end
 
-    def send!(message)
-      resp = @client.topic_produce_message(
-        message.topic,
-        message.send(:build_payload),
-        message.message_format
-      ).body
-
-      cache_schema_ids!(resp, message)
-      resp['offset'].to_i
-    end
-
-    private
-
-    def cache_schema_ids!(resp, message)
-      return unless message.message_format.to_sym == :avro
-      topic = message.topic
-
-      @lock.synchronize do
-        if @key_schema_cache[topic].nil? && kid = resp['key_schema_id']
-          @key_schema_cache[topic] = kid
-        end
-
-        if @value_schema_cache[topic].nil? && vid = resp['value_schema_id']
-          @value_schema_cache[topic] = vid
-        end
+      def send!(obj, opts = {}, producer = nil)
+        (producer || KafkaRest::Producer::Sender.instance).send!(self, obj, opts)
       end
     end
   end

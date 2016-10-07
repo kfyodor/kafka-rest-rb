@@ -2,19 +2,23 @@ require 'kafka_rest/config'
 require 'kafka_rest/worker'
 require 'kafka_rest/client'
 require 'kafka_rest/producer'
+require 'kafka_rest/producer/serialization/adapter'
+require 'kafka_rest/sender'
 require 'kafka_rest/message'
 require 'kafka_rest/consumer'
 
 KafkaRest.configure do |c|
-  if defined?(ActiveModelSerializers)
-    require 'kafka_rest/message/serializers/active_model'
-    c.default_message_serializer = KafkaRest::Message::Serializers::ActiveModel
+  serializers = KafkaRest::Producer::Serialization
+
+  if defined?(ActiveModelSerializers) || defined?(ActiveModel::Serializer)
+    require 'kafka_rest/producer/serialization/active_model'
+    c.serialization_adapter = serializers::ActiveModel
   # elsif defined?(JBuilder)
   # TODO jbuilder is default
   # elsif defined?(Rabl)
   # TODO rabl is default
   else
-    require 'kafka_rest/message/serializers/noop'
-    c.default_message_serializer = KafkaRest::Message::Serializers::Noop
+    require 'kafka_rest/producer/serialization/noop'
+    c.serialization_adapter = serializers::Noop
   end
 end

@@ -2,12 +2,12 @@ module KafkaRest
   class Config
     attr_accessor :url,
                   :default_message_format,
-                  :default_message_serializer
+                  :serialization_adapter
 
     def initialize
       @url = 'http://localhost:8082'
       @default_message_format = 'json'
-      @default_message_serializer = nil
+      @serialization_adapter = nil
     end
   end
 

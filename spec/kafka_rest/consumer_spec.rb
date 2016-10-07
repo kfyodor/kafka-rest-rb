@@ -17,26 +17,26 @@ describe KafkaRest::Consumer do
   end
 
   it 'has topic' do
-    expect(TestConsumer._topic).to eq "stuff"
+    expect(TestConsumer.get_topic).to eq "stuff"
   end
 
   it 'has group name' do
-    expect(TestConsumer._group_name).to eq "test_consumer"
+    expect(TestConsumer.get_group_name).to eq "test_consumer"
   end
 
   it 'has message format' do
-    expect(TestConsumer._message_format).to eq :json
+    expect(TestConsumer.get_message_format).to eq :json
   end
 
   it 'has auto_commit' do
-    expect(TestConsumer._auto_commit).to eq false
+    expect(TestConsumer.get_auto_commit).to eq false
   end
 
   it 'has offset_reset' do
-    expect(TestConsumer._offset_reset).to eq :smallest
+    expect(TestConsumer.get_offset_reset).to eq :smallest
   end
 
   it 'has poll_delay' do
-    expect(TestConsumer._poll_delay).to eq 0.2
+    expect(TestConsumer.get_poll_delay).to eq 0.2
   end
 end
