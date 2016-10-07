@@ -15,9 +15,7 @@ describe KafkaRest::Sender do
     }
   end
 
-  subject {
-    sender.send!(klass, obj)
-  } # empty client
+  subject { sender.send!(klass, obj) }
 
   let(:sender) { described_class.new(client) }
   let(:client) { MockClient.new }

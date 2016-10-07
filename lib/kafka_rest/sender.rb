@@ -1,7 +1,6 @@
 require 'thread'
 
 module KafkaRest
-
   class Sender
     @@lock = Mutex.new
 
