@@ -2,6 +2,8 @@ require 'kafka_rest/dsl'
 
 module KafkaRest
   module Producer
+    DEFAULT_KEY_SCHEMA = '["null", "string"]'
+
     def self.included(base)
       base.class_eval do
         extend ClassMethods
@@ -16,7 +18,7 @@ module KafkaRest
 
         option :key_schema, validate: ->(v){
           v.is_a?(Symbol) || v.is_a?(String) || v.is_a?(Proc)
-        }, default: '["null", "string"]'
+        }, default: DEFAULT_KEY_SCHEMA
 
         option :value_schema, validate: ->(v){
           v.is_a?(Symbol) || v.is_a?(String) || v.is_a?(Proc)
