@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.name          = "kafka-rest-rb"
   spec.version       = KafkaRest::VERSION
   spec.authors       = ["Theodore Konukhov"]
-  spec.email         = ["komolov.f@gmail.com"]
+  spec.email         = ["me@thdr.io"]
 
   spec.summary       = %q{Kafka-REST proxy client for Ruby on Rails.}
   spec.description   = %q{Kafka-REST client, DSLs and consumer workers for Ruby.}
