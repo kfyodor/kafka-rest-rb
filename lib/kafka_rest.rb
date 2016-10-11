@@ -1,7 +1,7 @@
 require 'kafka_rest/config'
 require 'kafka_rest/logging'
-require 'kafka_rest/worker'
 require 'kafka_rest/client'
+require 'kafka_rest/worker'
 require 'kafka_rest/producer'
 require 'kafka_rest/producer/serialization/adapter'
 require 'kafka_rest/sender'

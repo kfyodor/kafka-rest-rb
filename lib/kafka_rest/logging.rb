@@ -9,12 +9,12 @@ module KafkaRest
       )
     end
 
-    def self.logger=(logger)
-      @logger = logger
+    def self.logger=(l)
+      @logger = l
     end
 
     def logger
-      self.logger
+      Logging.logger
     end
   end
 end
