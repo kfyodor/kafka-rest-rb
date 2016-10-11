@@ -54,7 +54,7 @@ describe KafkaRest::Sender do
       mock_client!.call(resp_with_schemas)
     end
 
-    let(:klass) { AvroProducer1 }
+    let(:klass) { AvroProducer2 }
 
     it 'sends a message and caches schemas' do
       expect(subject).to eq resp_with_schemas['offsets']

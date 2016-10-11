@@ -35,14 +35,17 @@ module KafkaRest
       # TODO: oooh, dirty and weird - this should not be here.
       #       come up with something good!
       topic    = klass.get_topic.to_s
+      key      = klass.get_key
       payload  = Payload.new(klass, obj, opts).build
       format   = klass.get_format.to_s
       params   = {}.tap do |_p|
         if format == 'avro'
-          if kid = @key_schema_cache[topic]
-            _p[:key_schema_id] = kid
-          else
-            _p[:key_schema] = klass.get_key_schema
+          unless key.nil?
+            if kid = @key_schema_cache[topic]
+              _p[:key_schema_id] = kid
+            else
+              _p[:key_schema] = klass.get_key_schema
+            end
           end
 
           if vid = @value_schema_cache[topic]

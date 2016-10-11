@@ -6,6 +6,19 @@ class AvroProducer1
   value_schema "string"
 end
 
+class AvroProducer2
+  include KafkaRest::Producer
+
+  key :get_key
+  topic :test_topic
+  format :avro
+  value_schema "string"
+
+  def get_key(obj)
+    "key"
+  end
+end
+
 class JsonProducer1
   include KafkaRest::Producer
 

@@ -7,7 +7,8 @@ module KafkaRest
     BUSY_THREAD_POOL_DELAY = 0.5
     NO_WORK_DELAY = 0.1
 
-    # TODO: logger
+    include KafkaRest::Logging
+
     def initialize(client)
       @client = client
       @started = false
@@ -28,25 +29,20 @@ module KafkaRest
         @running = true
 
         trap(:SIGINT) do
-          puts "[Kafka REST] Stopping work loop..."
           stop
         end
 
         init_consumers
         run_work_loop
       rescue => e
-        puts "[Kafka REST] Got exception: #{e.class} (#{e.message})"
-
-        e.backtrace.each do |msg|
-          puts "\t #{msg}"
-        end
-
-        puts "[Kafka REST] Stopping..."
+        logger.error "[Kafka REST] Got exception: #{e.class} (#{e.message})"
+        e.backtrace.each { |msg| logger.error "\t #{msg}" }
         stop
       end
     end
 
     def stop
+      logger.info "[Kafka REST] Stopping worker..."
       @running = false
       remove_consumers
     end
@@ -79,7 +75,7 @@ module KafkaRest
     def check_dead!
       # Do we need this?
       if @consumers.all?(&:dead?)
-        puts "[Kafka REST] All consumers are dead. Quitting..."
+        logger.info "[Kafka REST] All consumers are dead. Quitting..."
         stop
       end
     end

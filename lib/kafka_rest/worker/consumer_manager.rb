@@ -5,6 +5,8 @@ module KafkaRest
     class ConsumerManager
       STATES = [:initial, :idle, :working, :dead]
 
+      include KafkaRest::Logging
+
       class << self
         @@consumers = []
 
@@ -65,12 +67,13 @@ module KafkaRest
         @id    = resp.body['instance_id']
         @uri   = resp.body['base_uri']
         @state = :idle
-        puts "[Kafka REST] Added consumer #{@id}"
+
+        logger.info "[Kafka REST] Added consumer #{@id}"
       end
 
       def remove!
         resp = @client.consumer_remove(group_name, @id)
-        puts "[Kafka REST] Removed consumer #{@id}"
+        logger.info "[Kafka REST] Removed consumer #{@id}"
       end
 
       def poll!
@@ -80,7 +83,7 @@ module KafkaRest
             @state = :working
           end
 
-          puts "Polling #{group_name}..."
+          logger.debug "Polling #{group_name}..."
 
           params = {}.tap do |h|
             format and h[:format] = format
@@ -96,7 +99,7 @@ module KafkaRest
 
           if messages.any?
             messages.each do |msg|
-              puts "[Kafka REST] Consumer #{@id} got message: #{msg}"
+              logger.debug "[Kafka REST] Consumer #{@id} got message: #{msg}"
               @consumer.receive(msg)
             end
 
@@ -112,7 +115,7 @@ module KafkaRest
             end
           end
         rescue Exception => e # TODO: handle errors
-          puts "[Kafka REST] Consumer died due to error: #{e.class}, #{e.message}"
+          logger.warn "[Kafka REST] Consumer died due to error: #{e.class}, #{e.message}"
           with_lock { @state = :dead }
         end
       end

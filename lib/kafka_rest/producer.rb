@@ -2,7 +2,7 @@ require 'kafka_rest/dsl'
 
 module KafkaRest
   module Producer
-    DEFAULT_KEY_SCHEMA = '["null", "string"]'
+    DEFAULT_KEY_SCHEMA = "{\"type\": \"string\"}"
 
     def self.included(base)
       base.class_eval do
