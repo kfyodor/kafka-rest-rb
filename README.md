@@ -1,5 +1,3 @@
-# kafka-rest-rails [draft]
+# Kafka-REST client, producer/consumer DSLs and worker daemon for Ruby/Rails apps.
 
-Kafka REST client and consumers for Ruby and Ruby on Rails.
-
-TODO: make public as soon as we have some beta-quality version.
+In early development stage. Come back later to see the docs!
