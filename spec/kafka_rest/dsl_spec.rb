@@ -8,7 +8,7 @@ describe KafkaRest::Dsl do
     option :option_with_default, default: 1
     option :option_with_validation, validate: ->(val) { val == 1 }
     option :option_with_validation_and_err_msg,
-           validate: -> (val) { val == 1 },
+           validate: ->(val) { val == 1 },
            error_message: "Should eq 1"
     option :option_with_required, required: true
   end
