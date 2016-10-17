@@ -1,6 +1,6 @@
 require 'faraday'
 require 'faraday_middleware/response_middleware'
-require 'oj'
+require 'multi_json'
 
 module KafkaRest
   class Client
@@ -32,7 +32,7 @@ module KafkaRest
     class JsonRequest < Faraday::Middleware
       def call(env)
         if env[:body]
-          env[:body] = Oj.dump env[:body], mode: :compat, symbol_keys: false
+          env[:body] = MultiJson.dump env[:body]
         end
 
         @app.call(env)
@@ -41,7 +41,7 @@ module KafkaRest
 
     class JsonResponse < FaradayMiddleware::ResponseMiddleware
       define_parser do |body|
-        Oj.load(body)
+        MultiJson.load(body)
       end
     end
 

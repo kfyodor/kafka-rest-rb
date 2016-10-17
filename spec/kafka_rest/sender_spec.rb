@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'ostruct'
 
 describe KafkaRest::Sender do
   class MockClient
