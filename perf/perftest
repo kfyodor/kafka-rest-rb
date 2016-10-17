@@ -1,0 +1,198 @@
+#!/usr/bin/env ruby
+
+require 'bundler'
+Bundler.load_gemspec(File.expand_path('../../kafka-rest-rb.gemspec', __FILE__))
+Bundler.require(:default)
+
+require 'kafka_rest'
+require 'securerandom'
+require 'thread'
+require 'ostruct'
+
+ZK_URL = ENV['ZOOKEEPER'] || ':2181'
+KAFKA_BOOTSTRAP_SERVER = ENV['KAFKA_BOOTSTRAP_SERVER'] || ':9092'
+
+config = {
+  send_interval: ENV['SEND_INTERVAL'] && ENV['SEND_INTERVAL'].to_i,
+  parallelism: ENV['PARALLELISM'] && ENV['PARALLELISM'].to_i,
+  msg_count: ENV['MSG_COUNT'] && ENV['MSG_COUNT'].to_i
+}
+
+KafkaRest.configure do |c|
+  c.serialization_adapter = Class.new(KafkaRest::Producer::Serialization::Adapter) do
+    def serialize(obj, opts = {})
+      obj.id
+    end
+  end
+end
+
+class Test
+  FORMATS = %w(json avro binary).map(&:to_sym)
+
+  def initialize(config)
+    @topics    = 3.times.map {|_| "topic-#{SecureRandom.uuid}" }
+    @producers = @topics.zip(FORMATS).map do |topic, format|
+      build_producer(topic, format)
+    end
+
+    @workers = []
+
+    @parallelism = config[:parallelism]     || 4
+    @msg_count   = config[:msg_count]       || 1000
+    @send_interval = config[:send_interval] || 0.1
+
+    @success_count = 0
+    @errored_count = 0
+    @produce_time = 0
+
+    @errors = {}
+
+    @mutex = Mutex.new
+  end
+
+  def run!
+    begin_time = Time.now
+
+    if RUBY_PLATFORM == 'java'
+      trap('SIGTERM') { raise SignalException, 'SIGTERM' }
+      trap('SIGHUP')  { raise SignalException, 'SIGHUP' }
+      trap('SIGINT')  { raise Interrupt }
+    end
+
+    begin
+      @topics.each { |t| create_topic!(t) }
+
+      workers = @parallelism.times.map do |_|
+        Thread.new do |t|
+          log(t, "Worker initialized")
+          processed = 0
+
+          loop do
+            begin
+              t1 = Time.now
+              @producers.sample.generate_and_send!
+              t2 = (Time.now - t1) * 1000
+
+              @mutex.synchronize do
+                @success_count += 1
+                processed = @success_count + @errored_count
+                @produce_time += t2
+              end
+            rescue => e
+              @mutex.synchronize do
+                log(t, "Error while sending", false)
+
+                puts "#{e.class}: #{e.message}"
+                e.backtrace.each do |e|
+                  puts e
+                end
+
+                @errors["#{e.class.name}: #{e.message}"] ||= 0
+                @errors["#{e.class.name}: #{e.message}"] += 1
+
+                @errored_count += 1
+                processed = @success_count + @errored_count
+              end
+            end
+            if processed >= @msg_count
+              raise StopIteration
+            else
+              sleep(@send_interval)
+            end
+          end
+        end
+      end
+
+      workers.map(&:join)
+      puts "Sent all messages"
+    ensure
+      test_time = Time.now - begin_time
+
+      @topics.each { |t| remove_topic!(t) }
+      puts "Total test time: #{test_time}s"
+      puts "Total messages: #{@msg_count}"
+      puts "Total succeeded sends: #{@success_count}"
+      puts "Total failed sends: #{@errored_count}"
+      puts "AVG produce time: #{@produce_time / (@success_count + @errored_count)}ms"
+
+      if @errors.any?
+        puts "Errors encountered:"
+        @errors.each do |e, count|
+          puts "\t#{e}: #{count} times"
+        end
+      end
+    end
+  end
+
+  private
+
+  def log(thread, msg, lock = true)
+    log = ->{ "[Worker thread-#{thread.object_id}] #{msg}" }
+
+    if lock
+      @mutex.synchronize &log
+    else
+      log.call
+    end
+  end
+
+  def run_command(cmd)
+    out = nil
+
+    IO.popen(cmd) do |io|
+      out = io.read
+    end
+
+    if $?.to_i == 0
+      yield if block_given?
+    else
+      puts "Command `#{cmd}` finished with an error."
+    end
+  end
+
+  def create_topic!(topic)
+    cmd = <<-CMD
+      kafka-topics --create \
+                 --zookeeper #{ZK_URL} \
+                 --topic #{topic} \
+                 --partitions 2 \
+                 --replication-factor 1
+    CMD
+
+    run_command(cmd) do
+      puts "Successfully created topic `#{topic}`"
+    end
+  end
+
+  def remove_topic!(topic)
+    run_command("/usr/local/bin/kafka-topics --delete --topic #{topic} --zookeeper #{ZK_URL}") do
+      puts "Successfully removed topic `#{topic}`"
+    end
+  end
+
+  def build_producer(_topic, _format)
+    Class.new do
+      include KafkaRest::Producer
+
+      topic  _topic
+      format _format
+
+      if _format == :avro
+        value_schema <<-SCHEMA
+          {
+            "name":"test_schema",
+            "type":"string"
+          }
+        SCHEMA
+      end
+
+      key :id
+
+      def self.generate_and_send!
+        self.send!(OpenStruct.new(id: SecureRandom.uuid))
+      end
+    end
+  end
+end
+
+Test.new(config).run!
