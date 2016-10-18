@@ -1,41 +1,54 @@
 require 'kafka_rest/client/middleware.rb'
 require 'faraday'
+require 'connection_pool'
 
 module KafkaRest
   class Client
     def initialize
-      @conn = Faraday.new(url: KafkaRest.config.url) do |c|
-        c.request :encode_json
-        c.request :default_headers, default_headers
+      @conn = ConnectionPool.new(size: 8, timeout: 5) do
+        Faraday.new(url: KafkaRest.config.url) do |c|
+          c.request :encode_json
+          c.request :default_headers, default_headers
 
-        c.response :raise_exception
-        c.response :decode_json
+          c.response :raise_exception
+          c.response :decode_json
 
-        c.adapter :net_http_persistent
+          c.adapter :net_http_persistent
+        end
       end
+    end
+
+    %w(get post put delete).each do |m|
+      class_eval %Q{
+        def #{m}(*args)
+          @conn.with do |c|
+            c.#{m}(*args)
+          end
+        end
+      }
     end
 
     # Get list of topics
     ### returns: array of topics
     def topics
-      @conn.get("/topics")
+      get("/topics")
     end
 
     # Get topic metadata by name
     ### returns: name, configs, partitions
     def topic(topic)
-      @conn.get("/topics/#{topic}")
+      get("/topics/#{topic}")
     end
 
     # Get topic's partitions
     ###
     def topic_partitions(topic)
-      @conn.get("/topics/#{topic}/partitions")
+      get("/topics/#{topic}/partitions")
     end
 
     # Get topic's partition metadata
     def topic_partition(topic, partition)
-      @conn.get("/topics/#{topic}/partitions/#{partition}")
+      get("/topics/#{topic}/partitions/#{partition}")
     end
 
     # Get messages from topic's partition.
@@ -43,7 +56,7 @@ module KafkaRest
       params[:count] ||= 1
       format = params.delete(:format) || 'binary'
 
-      @conn.get(
+      get(
         "/topics/#{topic}/partitions/#{partition}/messages",
         params,
         accept(format)
@@ -55,7 +68,7 @@ module KafkaRest
         records: records.is_a?(Array) ? records : [records]
       )
 
-      @conn.post(path, body, content_type(format))
+      post(path, body, content_type(format))
     end
     private :produce_message
 
@@ -81,21 +94,21 @@ module KafkaRest
       body['auto.commit.enable'] = params[:auto_commit_enable] == true || false
       body['format'] = params[:format] || 'json'
 
-      @conn.post("consumers/#{group_name}", body)
+      post("consumers/#{group_name}", body)
     end
 
     def consumer_commit_offsets(group_name, consumer_id)
-      @conn.post("consumers/#{group_name}/instances/#{consumer_id}/offsets")
+      post("consumers/#{group_name}/instances/#{consumer_id}/offsets")
     end
 
     def consumer_remove(group_name, consumer_id)
-      @conn.delete("consumers/#{group_name}/instances/#{consumer_id}")
+      delete("consumers/#{group_name}/instances/#{consumer_id}")
     end
 
     def consumer_consume_from_topic(group_name, consumer_id, topic, params = {})
       format = params.delete(:format) || 'json'
 
-      @conn.get(
+      get(
         "consumers/#{group_name}/instances/#{consumer_id}/topics/#{topic}",
         params,
         accept(format)
@@ -103,7 +116,7 @@ module KafkaRest
     end
 
     def brokers
-      @conn.get("/brokers")
+      get("/brokers")
     end
 
     private

@@ -25,6 +25,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'concurrent-ruby', '~> 1.0'
   spec.add_runtime_dependency 'multi_json', '~> 1.12'
+  spec.add_runtime_dependency 'connection_pool', '~> 2.2'
 
   if RUBY_PLATFORM == 'java'
     spec.add_runtime_dependency 'jrjackson', '~> 0.3.4'
