@@ -20,8 +20,13 @@ describe KafkaRest::Producer do
 
     it 'sends a message' do
       obj = "test"
-      expect(KafkaRest::Sender.instance)
-        .to receive(:send!).with(klass, obj, {})
+      msg = KafkaRest::Producer::Message.new(klass, obj)
+
+      expect(JsonProducer1)
+        .to receive(:build_message).and_return(msg)
+
+      expect(KafkaRest::Sender::KafkaSender.instance)
+        .to receive(:send!).with(msg)
 
       klass.send!(obj)
     end

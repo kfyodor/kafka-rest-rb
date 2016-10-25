@@ -4,19 +4,6 @@ require 'multi_json'
 
 module KafkaRest
   class Client
-    class KafkaRestClientException < StandardError
-      attr_reader :body, :status
-
-      def initialize(resp)
-        @body = resp.body
-        @status = resp.status
-
-        super "#{@body['message']}" +
-              " (HTTP Status: #{@status}; " +
-              "error code: #{@body['error_code']})"
-      end
-    end
-
     class DefaultHeaders < Faraday::Middleware
       def initialize(app = nil, default_headers = {})
         @default_headers = default_headers
@@ -50,7 +37,7 @@ module KafkaRest
         response = @app.call(env)
         response.on_complete do
           unless response.success?
-            raise KafkaRestClientException.new(response)
+            raise ClientError.new(response)
           end
         end
       end

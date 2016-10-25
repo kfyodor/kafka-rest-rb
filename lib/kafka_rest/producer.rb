@@ -1,4 +1,5 @@
 require 'kafka_rest/dsl'
+require 'kafka_rest/producer/payload'
 
 module KafkaRest
   module Producer
@@ -60,9 +61,15 @@ module KafkaRest
     end
 
     module ClassMethods
-      def send!(obj, opts = {}, producer = nil)
-        (producer || KafkaRest::Sender.instance)
-          .send!(self, obj, opts)
+      def build_message(obj, opts = {})
+        Message.new(self, obj, opts)
+      end
+
+      def send!(obj, opts = {}, sender = nil)
+        sender  = sender || KafkaRest.config.sender
+        message = build_message(obj, opts)
+
+        sender.send!(message)
       end
     end
   end

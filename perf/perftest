@@ -38,8 +38,8 @@ class Test
     @workers = []
 
     @parallelism = config[:parallelism]     || 4
-    @msg_count   = config[:msg_count]       || 1000
-    @send_interval = config[:send_interval] || 0.1
+    @msg_count   = config[:msg_count]       || 10000
+    @send_interval = config[:send_interval] || 0
 
     @success_count = 0
     @errored_count = 0

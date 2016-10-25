@@ -1,10 +1,10 @@
-require 'kafka_rest/sender/payload/builder'
-require 'kafka_rest/sender/payload/avro_builder'
-require 'kafka_rest/sender/payload/json_builder'
-require 'kafka_rest/sender/payload/binary_builder'
+require 'kafka_rest/producer/payload/builder'
+require 'kafka_rest/producer/payload/avro_builder'
+require 'kafka_rest/producer/payload/json_builder'
+require 'kafka_rest/producer/payload/binary_builder'
 
 module KafkaRest
-  class Sender
+  module Producer
     class Payload
       attr_reader :klass
 

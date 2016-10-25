@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe KafkaRest::Sender::Payload do
+describe KafkaRest::Producer::Payload do
   let(:obj) { "test" }
   let(:payload) { described_class.new(klass, obj) }
 

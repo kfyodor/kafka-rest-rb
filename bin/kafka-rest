@@ -9,7 +9,7 @@ app_path = ENV['APP_PATH'] || '.'
 require 'kafka_rest/logging'
 require 'kafka_rest/worker'
 
-require File.expand_path(app_path, 'config/environment.rb')
+require File.expand_path('config/environment.rb', app_path)
 
 Rails.application.eager_load!
 

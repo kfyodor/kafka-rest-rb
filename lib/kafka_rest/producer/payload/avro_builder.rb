@@ -1,5 +1,5 @@
 module KafkaRest
-  class Sender
+  module Producer
     class Payload
       class AvroBuilder < Builder
         # TODO: get rid of this

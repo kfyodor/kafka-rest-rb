@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'ostruct'
 
-describe KafkaRest::Sender do
+describe KafkaRest::Sender::KafkaSender do
   class MockClient
     def topic_produce_message(topic, payload, format)
       :O_O
@@ -16,8 +16,9 @@ describe KafkaRest::Sender do
     }
   end
 
-  subject { sender.send!(klass, obj) }
+  subject { sender.send!(msg) }
 
+  let(:msg) { KafkaRest::Producer::Message.new(klass, obj) }
   let(:sender) { described_class.new(client) }
   let(:client) { MockClient.new }
   let(:obj) { "test" }
@@ -66,7 +67,7 @@ describe KafkaRest::Sender do
     it 'uses schema ids instead of schemas in payload if found' do
       subject
 
-      params = sender.send(:build_request, klass, obj, {}).last
+      params = sender.send(:build_params, msg)
 
       expect(params).to have_key(:key_schema_id)
       expect(params).to have_key(:value_schema_id)

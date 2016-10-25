@@ -1,5 +1,5 @@
 module KafkaRest
-  class Sender
+  module Producer
     class Payload
       class JsonBuilder < Builder
         def build
