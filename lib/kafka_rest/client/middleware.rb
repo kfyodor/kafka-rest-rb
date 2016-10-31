@@ -28,7 +28,11 @@ module KafkaRest
 
     class JsonResponse < FaradayMiddleware::ResponseMiddleware
       define_parser do |body|
-        MultiJson.load(body)
+        if body == ""
+          nil
+        else
+          MultiJson.load(body)
+        end
       end
     end
 

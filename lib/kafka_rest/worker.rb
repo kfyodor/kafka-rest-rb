@@ -51,8 +51,6 @@ module KafkaRest
 
     def run_work_loop
       while @running
-        check_dead!
-
         jobs = @consumers.select(&:poll?)
 
         if jobs.empty?
@@ -72,20 +70,12 @@ module KafkaRest
       end
     end
 
-    def check_dead!
-      # Do we need this?
-      if @consumers.all?(&:dead?)
-        logger.info "[Kafka REST] All consumers are dead. Quitting..."
-        stop
-      end
-    end
-
     def init_consumers
-      @consumers.map &:add!
+      @consumers.select(&:initial?).map(&:add!)
     end
 
     def remove_consumers
-      @consumers.reject(&:initial?).map &:remove!
+      @consumers.reject(&:initial?).map(&:remove!)
     end
 
     def max_queue

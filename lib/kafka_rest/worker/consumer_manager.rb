@@ -1,4 +1,5 @@
 require 'concurrent/utility/monotonic_time'
+require 'kafka_rest/consumer/message'
 
 module KafkaRest
   class Worker
@@ -73,6 +74,9 @@ module KafkaRest
 
       def remove!
         resp = @client.consumer_remove(group_name, @id)
+        @id    = nil
+        @uri   = nil
+        @state = :initial
         logger.info "[Kafka REST] Removed consumer #{@id}"
       end
 
@@ -100,6 +104,8 @@ module KafkaRest
           if messages.any?
             messages.each do |msg|
               logger.debug "[Kafka REST] Consumer #{@id} got message: #{msg}"
+
+              msg = Consumer::Message.new(msg, topic)
               @consumer.receive(msg)
             end
 
@@ -114,9 +120,14 @@ module KafkaRest
               @state = :idle
             end
           end
-        rescue Exception => e # TODO: handle errors
+        rescue Exception => e # TODO: handle specific errors
           logger.warn "[Kafka REST] Consumer died due to error: #{e.class}, #{e.message}"
-          with_lock { @state = :dead }
+          with_lock {
+            @state = :dead
+            @next_poll = Concurrent.monotonic_time + poll_delay
+          }
+          remove! # TODO: timeouts and retry counts
+          add!
         end
       end
 
