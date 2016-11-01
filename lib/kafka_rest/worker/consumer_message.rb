@@ -1,6 +1,6 @@
 module KafkaRest
-  module Consumer
-    class Message
+  class Worker
+    class ConsumerMessage
       attr_reader :key, :value, :offset, :partition, :timestamp
 
       def initialize(payload, topic)

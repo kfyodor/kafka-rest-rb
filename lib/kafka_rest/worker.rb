@@ -12,6 +12,8 @@ module KafkaRest
     def initialize(client)
       @client = client
       @started = false
+      @util_threads = []
+      @out_pipe, @in_pipe = IO.pipe
       @thread_pool = Concurrent::ThreadPoolExecutor.new(
         min_threads: KafkaRest.config.worker_min_threads,
         max_threads: KafkaRest.config.worker_max_threads,
@@ -25,31 +27,84 @@ module KafkaRest
     end
 
     def start
+      trap('SIGINT') { @in_pipe.puts 'SIGINT' } # more signals
+
       begin
         @running = true
 
-        trap(:SIGINT) do
-          stop
-        end
+        util_thread { run_dead_cleaner }
+        util_thread { run_work_loop }
 
-        init_consumers
-        run_work_loop
+        wait_for_signal
       rescue => e
         logger.error "[Kafka REST] Got exception: #{e.class} (#{e.message})"
         e.backtrace.each { |msg| logger.error "\t #{msg}" }
         stop
+      ensure
+        [@in_pipe, @out_pipe].each &:close
       end
     end
 
     def stop
       logger.info "[Kafka REST] Stopping worker..."
+
       @running = false
-      remove_consumers
+      @util_threads.map &:join
+
+      logger.info "[Kafka REST] Bye."
+      exit(0)
     end
 
     private
 
+    # a dirty hack
+    def send_quit
+      @in_pipe.puts "SIGINT"
+    end
+
+    def wait_for_signal
+      while data = IO.select([@out_pipe])
+        signal = data.first[0].gets.strip
+        handle_signal(signal)
+      end
+    end
+
+    def handle_signal(signal)
+      case signal
+      when 'SIGINT'
+        stop
+      else
+        raise Interrupt
+      end
+    end
+
+    # Runs some job in an utility thread
+    def util_thread(&block)
+      parent = Thread.current
+
+      @util_threads << Thread.new(&block).tap do |t|
+        t.abort_on_exception = true
+      end
+    end
+
+    def run_dead_cleaner
+      while @running
+        sleep(3)
+
+        dead = @consumers.select(&:dead?)
+
+        if @consumers.count == dead.count
+          logger.warn "All consumers are dead. Quitting..."
+          send_quit
+        else
+          dead.each(&:remove!)
+        end
+      end
+    end
+
     def run_work_loop
+      init_consumers
+
       while @running
         jobs = @consumers.select(&:poll?)
 
@@ -68,14 +123,16 @@ module KafkaRest
           sleep(BUSY_THREAD_POOL_DELAY)
         end
       end
+
+      remove_consumers
     end
 
     def init_consumers
-      @consumers.select(&:initial?).map(&:add!)
+      @consumers.select(&:initial?).each(&:add!)
     end
 
     def remove_consumers
-      @consumers.reject(&:initial?).map(&:remove!)
+      @consumers.reject(&:initial?).each(&:remove!)
     end
 
     def max_queue

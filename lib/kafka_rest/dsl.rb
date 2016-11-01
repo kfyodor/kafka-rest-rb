@@ -5,7 +5,6 @@ module KafkaRest
 
     def option(name, opts = {})
       name         = name.to_s
-      required     = opts[:required] || false
       default      = opts[:default]
       validate     = opts[:validate] || ->(val) { true }
       error_msg    = opts[:error_message] || "`#{name}`'s value is invalid"
@@ -23,13 +22,7 @@ module KafkaRest
 
         class << self
           def get_#{name}
-            @#{name}.tap do |v|
-              if #{required} && v.nil?
-                raise KafkaRest::Dsl::MissingRequiredOption.new(
-                  "Missing required option `#{name}`"
-                )
-              end
-            end
+            @#{name}
           end
 
           def #{name}(val)

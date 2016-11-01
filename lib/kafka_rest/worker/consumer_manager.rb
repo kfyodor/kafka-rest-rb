@@ -1,46 +1,57 @@
 require 'concurrent/utility/monotonic_time'
-require 'kafka_rest/consumer/message'
+require 'kafka_rest/worker/consumer_message'
+require 'kafka_rest/worker/consumer'
 
 module KafkaRest
   class Worker
     class ConsumerManager
+      # Manages state and lifecycle of a Consumer instance
+
       STATES = [:initial, :idle, :working, :dead]
 
       include KafkaRest::Logging
 
       class << self
-        @@consumers = []
+        @@register_consumer_procs = []
+        @@consumers = nil
 
-        def register!(consumer_class)
-          # TODO: raise exception if group_id + topic are not unique
-          # TODO: Thread.current???
-          @@consumers << consumer_class
+        def register!(consumer)
+          # Delay consumers validating until they are actually needed
+          # and all classes are loaded.
+          @@register_consumer_procs << ->(consumers){
+            topic, group_name = consumer.get_topic, consumer.get_group_name
+
+            if topic.nil?
+              raise Exception.new("#{consumer.name}: topic must not be empty")
+            end
+
+            if group_name.nil?
+              raise Exception.new("#{consumer.name}: group_name must not be empty")
+            end
+
+            key = [topic, group_name]
+
+            if consumers.has_key?(key)
+              raise Exception.new("#{consumer.name}: group_name and topic are not unique")
+            end
+
+            { key => consumer }
+          }
         end
 
         def consumers
-          @@consumers
+          @@consumers ||= @@register_consumer_procs.reduce({}) do |c, p|
+            c.merge(p.call c)
+          end.values
         end
       end
 
-      extend Forwardable
-
-      def_delegators :@consumer,
-                     :topic,
-                     :group_name,
-                     :poll_delay,
-                     :auto_commit,
-                     :offset_reset,
-                     :format,
-                     :max_bytes
-
-      def initialize(client, consumer)
-        @client    = client
-        @consumer  = consumer.new
-        @id        = nil
-        @uri       = nil
-        @state     = :initial
-        @next_poll = Concurrent.monotonic_time
-        @lock      = Mutex.new
+      def initialize(client, klass)
+        @consumer   = Consumer.new(klass, client)
+        @state      = :initial
+        @poll_delay = klass.get_poll_delay
+        @next_poll  = Concurrent.monotonic_time
+        @lock       = Mutex.new
       end
 
       STATES.each do |state|
@@ -51,83 +62,53 @@ module KafkaRest
         }
       end
 
-      def poll?
-        with_lock {
+      def poll?(lock = true)
+        with_lock(lock) do
           idle?(false) && Concurrent.monotonic_time > @next_poll
-        }
+        end
       end
 
       def add!
-        params = {}.tap do |h|
-          auto_commit.nil? or h[:auto_commit_enable] = auto_commit
-          offset_reset and h[:auto_offset_reset] = offset_reset
-          format and h[:format] = format
+        with_lock do
+          return nil if @consumer.added?
+          @consumer.add!
+          @state = :idle
         end
-
-        resp   = @client.consumer_add(group_name, params)
-        @id    = resp.body['instance_id']
-        @uri   = resp.body['base_uri']
-        @state = :idle
-
-        logger.info "[Kafka REST] Added consumer #{@id}"
       end
 
       def remove!
-        resp = @client.consumer_remove(group_name, @id)
-        @id    = nil
-        @uri   = nil
-        @state = :initial
-        logger.info "[Kafka REST] Removed consumer #{@id}"
+        with_lock do
+          return nil unless @consumer.added?
+          @consumer.remove!
+          @state = :initial
+        end
       end
 
       def poll!
+        with_lock do
+          return nil unless idle?(false)
+          @state = :working
+        end
+
         begin
-          with_lock do
-            return false unless idle?(false)
-            @state = :working
+          unless @consumer.poll!
+            @next_poll = Concurrent.monotonic_time + @poll_delay
           end
 
-          logger.debug "Polling #{group_name}..."
+          with_lock { @state = :idle }
+        rescue Exception => e
+          # TODO:
+          # - Recover from Faraday errors.
+          # - Mark dead only when encountering application errors,
+          #   because it's obvious that after restart it will be raised again
+          logger.error "[Kafka REST] Consumer died due to an error"
+          logger.error "#{e.class}: #{e.message}"
 
-          params = {}.tap do |h|
-            format and h[:format] = format
-            max_bytes and h[:max_bytes] = max_bytes
+          e.backtrace.each do |s|
+            logger.error s
           end
 
-          messages = @client.consumer_consume_from_topic(
-            group_name,
-            @id,
-            topic,
-            params
-          ).body
-
-          if messages.any?
-            messages.each do |msg|
-              logger.debug "[Kafka REST] Consumer #{@id} got message: #{msg}"
-
-              msg = Consumer::Message.new(msg, topic)
-              @consumer.receive(msg)
-            end
-
-            unless auto_commit
-              @client.consumer_commit_offsets(group_name, @id)
-            end
-
-            with_lock { @state = :idle }
-          else
-            with_lock do
-              @next_poll = Concurrent.monotonic_time + poll_delay
-              @state = :idle
-            end
-          end
-        rescue Exception => e # TODO: handle specific errors
-          logger.warn "[Kafka REST] Consumer died due to error: #{e.class}, #{e.message}"
-          with_lock {
-            @state = :dead
-            @next_poll = Concurrent.monotonic_time + poll_delay
-          }
-          remove! # TODO: timeouts and retry counts
-          add!
+          with_lock { @state = :dead }
         end
       end
 
