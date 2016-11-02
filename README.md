@@ -64,25 +64,15 @@ Include `KafkaRest::Producer` module to some class in order to make a producer.
 
 ##### Available methods:
 
-**topic** _String_ (required)
-
-A Kafka topic name messages will be sent to.
-
-**format** _Enum(`:json`, `:binary`, `:avro`)_ (required, `:json` is default)
-
-A message format. Kafka REST can accept messages in JSON, AVRO or binary formats.
-
-**key** _Symbol_ or _Proc_
-
-A method name or proc which returns a message key. It could be a method implemented in producer's class, a method on provided object or a proc which takes provided object as an argument. See details in [Producer's documentation](#todo).
-
-**serialization_adapter** _Class_ and __serializer__ _Any_
-
-Serializer class and additional arguments for serializer. Read about serializers [below](#todo)
-
-**key_schema** _String_ and **value_schema** _String_
-
-AVRO schemas for encoding keys and values. If format is `:avro`, `value_schema` is required. If `key_schema` is null, default schema will be used (encodes everything to string).
+| name | type | required | default | description
+| --- | --- | --- | --- | --- |
+| **topic** | _String_ | yes | | A Kafka topic name messages will be sent to.
+| **format** | _Enum(`json`, `binary`, `avro`)_ | yes | `json` | A message format. Kafka REST can accept messages in JSON, AVRO or binary formats. |
+| **key** | _Symbol_ or _Proc_ | no | | A method name or proc which returns a message key. It could be a method implemented in producer's class, a method on provided object or a proc which takes provided object as an argument. See details in [Producer's documentation](#todo).
+| **serialization_adapter** | _Class_ | no | | Serializer class
+| **serializer** | _Any_ | no | | Additional arguments for serializer. Read about serializers [below](#todo)
+| **key_schema** | _String_ | no | `"{\"type\": \"string\"}"` when key is not empty | AVRO schema (a JSON-encoded string) for encoding keys
+| **value_schema** | _String_ | yes if format is `avro` | |  AVRO schema for encoding values.
 
 ##### Example
 
@@ -102,29 +92,15 @@ Include `KafkaRest::Consumer` module to some class in order to make a consumer f
 
 ##### Available methods:
 
-**topic** _String_ (required)
-
-A topic messages will be consumed from.
-
-**group_name** _String_ (required)
-
-Consumer group name. Kafka will be load balancing messages between consumers from same group subscribed to same topic.
-
-**auto_commit** _Boolean_ (default is `false`)
-
-Auto commit is not recommended for most cases because it weakens message delivery guarantees.
-
-**offset_reset** _Enum(:smallest, :largest)_
-
-Consumer offset reset strategy when a new consumer group subscribes to a topic. Basically it means from which offset new consumer will be reading messages: if smallest, consumer will get all messages from the beginning of topic as well; if largest, consumer will be getting only new messages.
-
-**max_bytes** _Long_
-
-Kafka Consumer receives messages in batches. This option specifies a maximum batch size in bytes.
-
-**poll_delay** _Long_ (default is 0.5)
-
-A number of seconds between polls. 
+| name | type | required | default | description
+| --- | --- | --- | --- | --- |
+| **topic** | _String_ | yes | | A topic messages will be consumed from.
+| **group_name** | _String_ | yes | | Consumer group name. Kafka will be load balancing messages between consumers from same group subscribed to same topic.
+| **format** | _Enum(`json`, `binary`, `avro`)_ | yes | `json` | A message format. Kafka REST can receive messages in JSON, AVRO or binary formats.
+| **auto_commit** | _Boolean_ | no | `false` | Auto commit is not recommended for most cases because it weakens message delivery guarantees.
+| **offset_reset** | _Enum(`smallest`, `largest`)_ | no | `largest` | Consumer offset reset strategy when a new consumer group subscribes to a topic. Basically it means from which offset new consumer will be reading messages: if smallest, consumer will get all messages from the beginning of topic as well; if largest, consumer will be getting only new messages.
+| **max_bytes** | _Long_ | no | | Kafka Consumer receives messages in batches. This option specifies a maximum batch size in bytes.
+| **poll_delay** | _Long_ | no | `0.5` | A number of seconds between consumer poll requests. 
 
 ##### Example:
 
@@ -140,3 +116,5 @@ class MyConsumer
   end
 end
 ```
+
+_More on the way..._
