@@ -47,7 +47,7 @@ module KafkaRest
         params[:format] = format if format
         params[:max_bytes] = max_bytes if max_bytes
 
-        logger.debug "[Kafka REST] Polling consumer #{@id} in group #{group_name}..."
+        logger.debug "[Kafka REST] Polling consumer #{@id}..."
 
         resp = @client.consumer_consume_from_topic(group_name, @id, topic, params)
         process_messages(resp.body)
@@ -69,6 +69,8 @@ module KafkaRest
             logger.debug "[Kafka REST] Consumer #{@id} got message: #{msg}"
             @instance.receive ConsumerMessage.new(msg, topic)
           end
+
+          logger.info "[Kafka REST] Consumer #{@id} processed #{messages.size} messages"
 
           commit! unless auto_commit
 
