@@ -2,6 +2,10 @@ require 'kafka_rest/client/middleware.rb'
 require 'faraday'
 require 'connection_pool'
 
+# TODO: circuit breaker
+# Faraday::ConnectionFailed
+# Faraday::TimeoutError
+
 module KafkaRest
   class Client
     def initialize
@@ -90,7 +94,7 @@ module KafkaRest
     ### returns: instance_id, base_uri
     def consumer_add(group_name, params = {})
       body = {}
-      body['auto.offset.reset'] = params[:auth_offset_reset] || 'largest'
+      body['auto.offset.reset'] = params[:auto_offset_reset] || 'largest'
       body['auto.commit.enable'] = params[:auto_commit_enable] == true || false
       body['format'] = params[:format] || 'json'
 

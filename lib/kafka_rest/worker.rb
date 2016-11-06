@@ -1,5 +1,7 @@
 require 'kafka_rest/client'
 require 'kafka_rest/worker/consumer_manager'
+require 'kafka_rest/worker/error_handler'
+
 require 'concurrent/executor/thread_pool_executor'
 
 module KafkaRest
@@ -37,8 +39,8 @@ module KafkaRest
 
         wait_for_signal
       rescue => e
-        logger.error "[Kafka REST] Got exception: #{e.class} (#{e.message})"
-        e.backtrace.each { |msg| logger.error "\t #{msg}" }
+        logger.error "[Kafka REST] Worker died due to an exception"
+        ErrorHandler.handle_error(e)
         stop
       ensure
         [@in_pipe, @out_pipe].each &:close
@@ -91,13 +93,14 @@ module KafkaRest
       while @running
         sleep(3)
 
-        dead = @consumers.select(&:dead?)
+        dead     = @consumers.select(&:dead?)
+        all_dead = @consumers.count == dead.count
 
-        if @consumers.count == dead.count
-          logger.warn "All consumers are dead. Quitting..."
-          send_quit
-        else
-          dead.each(&:remove!)
+        dead.each(&:remove!)
+
+        if all_dead
+          logger.warn "All consumers are dead."
+          send_quit if KafkaRest.config.shutdown_when_all_dead
         end
       end
     end
