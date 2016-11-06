@@ -102,11 +102,7 @@ module KafkaRest
           # - Mark dead only when encountering application errors,
           #   because it's obvious that after restart it will be raised again
           logger.error "[Kafka REST] Consumer died due to an error"
-          logger.error "#{e.class}: #{e.message}"
-
-          e.backtrace.each do |s|
-            logger.error s
-          end
+          ErrorHandler.handle_error(e)
 
           with_lock { @state = :dead }
         end

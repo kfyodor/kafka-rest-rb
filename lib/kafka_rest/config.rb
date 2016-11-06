@@ -6,7 +6,10 @@ module KafkaRest
                   :worker_min_threads,
                   :worker_max_threads,
                   :worker_max_queue,
-                  :sender
+                  :shutdown_when_all_dead
+
+    attr_reader :sender,
+                :worker_error_handlers
 
     def initialize
       @url = 'http://localhost:8082'
@@ -15,6 +18,8 @@ module KafkaRest
       @worker_min_threads = 4
       @worker_max_threads = 4
       @worker_max_queue = nil
+      @worker_error_handlers = []
+      @shutdown_when_all_dead = false
       @sender = KafkaRest::Sender::KafkaSender
     end
 
